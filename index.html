@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Budget & Shopping Tracker</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1.25rem;
+      color: #0f172a;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    input, select, button {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    li {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    li:last-child {
+      border-bottom: none;
+    }
+
+    .item-info {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background-color: #e2e8f0;
+    }
+
+    .badge-over {
+      background-color: #fee2e2;
+      color: var(--danger);
+      font-weight: bold;
+    }
+
+    .badge-ok {
+      background-color: #d1fae5;
+      color: #047857;
+      font-weight: bold;
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      padding: 4px 8px;
+      font-size: 0.875rem;
+    }
+
+    .summary-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .summary-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: #f1f5f9;
+      border-radius: 6px;
+    }
+
+    .summary-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .summary-title {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    .summary-sub {
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Add Item / Scan Receipt -->
+  <div class="card">
+    <h2>Add Item / Scan Receipt</h2>
+    <form id="itemForm">
+      <div class="form-group">
+        <label for="itemName">Item Name</label>
+        <input type="text" id="itemName" required placeholder="e.g., Milk">
+      </div>
+
+      <div class="form-group">
+        <label for="itemPrice">Price ($)</label>
+        <input type="number" id="itemPrice" step="0.01" required placeholder="0.00">
+      </div>
+
+      <div class="form-group">
+        <label for="categorySelect">Category</label>
+        <select id="categorySelect" onchange="toggleCustomCategoryInput(this)">
+          <option value="Groceries">Groceries</option>
+          <option value="Housing & Rent">Housing & Rent</option>
+          <option value="Utilities">Utilities</option>
+          <option value="Transportation & Gas">Transportation & Gas</option>
+          <option value="Personal Care & Health">Personal Care & Health</option>
+          <option value="Dining & Takeout">Dining & Takeout</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Debt & Savings">Debt & Savings</option>
+          <option value="CUSTOM">+ Add Custom Category...</option>
+        </select>
+      </div>
+
+      <div class="form-group hidden" id="customCategoryGroup">
+        <label for="customCategory">Custom Category Name</label>
+        <input type="text" id="customCategory" placeholder="Enter category name">
+      </div>
+
+      <div class="form-group">
+        <label for="categoryLimit">Category Spending Limit ($) <small>(Optional)</small></label>
+        <input type="number" id="categoryLimit" step="0.01" placeholder="e.g., 200.00">
+      </div>
+
+      <button type="submit">Add to Shopping List</button>
+    </form>
+  </div>
+
+  <!-- Category Spending Summary -->
+  <div class="card">
+    <h2>Category Spending Summary</h2>
+    <div id="summaryContainer" class="summary-grid">
+      <!-- Summary details dynamically populated here -->
+    </div>
+  </div>
+
+  <!-- Shopping Checklist -->
+  <div class="card">
+    <h2>Shopping Checklist</h2>
+    <ul id="shoppingList">
+      <!-- Items dynamically populated here -->
+    </ul>
+  </div>
+
+</div>
+
+<script>
+  function toggleCustomCategoryInput(select) {
+    const customGroup = document.getElementById('customCategoryGroup');
+    if (select.value === 'CUSTOM') {
+      customGroup.classList.remove('hidden');
+    } else {
+      customGroup.classList.add('hidden');
+    }
+  }
+
+  const items = [];
+  const categoryLimits = {}; // Stores latest limit per category
+
+  document.getElementById('itemForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('itemName').value;
+    const price = parseFloat(document.getElementById('itemPrice').value);
+    let category = document.getElementById('categorySelect').value;
+    const limitInput = document.getElementById('categoryLimit').value;
+
+    if (category === 'CUSTOM') {
+      const customVal = document.getElementById('customCategory').value.trim();
+      category = customVal !== '' ? customVal : 'Uncategorized';
+    }
+
+    if (limitInput !== '') {
+      categoryLimits[category] = parseFloat(limitInput);
+    }
+
+    const item = {
+      id: Date.now(),
+      name,
+      price,
+      category
+    };
+
+    items.push(item);
+    renderList();
+    renderSummary();
+    
+    // Reset form
+    this.reset();
+    document.getElementById('customCategoryGroup').classList.add('hidden');
+  });
+
+  function deleteItem(id) {
+    const index = items.findIndex(i => i.id === id);
+    if (index > -1) {
+      items.splice(index, 1);
+      renderList();
+      renderSummary();
+    }
+  }
+
+  function renderList() {
+    const listEl = document.getElementById('shoppingList');
+    listEl.innerHTML = '';
+
+    if (items.length === 0) {
+      listEl.innerHTML = '<li><span>No items in list.</span></li>';
+      return;
+    }
+
+    items.forEach(item => {
+      const li = document.createElement('li');
+      
+      li.innerHTML = `
+        <div class="item-info">
+          <input type="checkbox">
+          <span><strong>${item.name}</strong> - $${item.price.toFixed(2)}</span>
+          <span class="badge">${item.category}</span>
+        </div>
+        <button class="btn-danger" onclick="deleteItem(${item.id})">Delete</button>
+      `;
+      listEl.appendChild(li);
+    });
+  }
+
+  function renderSummary() {
+    const summaryEl = document.getElementById('summaryContainer');
+    summaryEl.innerHTML = '';
+
+    if (items.length === 0) {
+      summaryEl.innerHTML = '<div><span>No spending tracked yet.</span></div>';
+      return;
+    }
+
+    // Group items by category and compute totals
+    const totals = {};
+    items.forEach(item => {
+      if (!totals[item.category]) {
+        totals[item.category] = 0;
+      }
+      totals[item.category] += item.price;
+    });
+
+    // Render summary for each active category
+    Object.keys(totals).forEach(cat => {
+      const spent = totals[cat];
+      const limit = categoryLimits[cat];
+      const div = document.createElement('div');
+      div.className = 'summary-card';
+
+      let limitInfo = 'No limit set';
+      let statusBadge = '';
+
+      if (limit !== undefined && limit !== null) {
+        const remaining = limit - spent;
+        if (remaining < 0) {
+          statusBadge = `<span class="badge badge-over">Over by $${Math.abs(remaining).toFixed(2)}</span>`;
+        } else {
+          statusBadge = `<span class="badge badge-ok">$${remaining.toFixed(2)} remaining</span>`;
+        }
+        limitInfo = `Limit: $${limit.toFixed(2)}`;
+      }
+
+      div.innerHTML = `
+        <div class="summary-details">
+          <span class="summary-title">${cat}</span>
+          <span class="summary-sub">Total Spent: $${spent.toFixed(2)} | ${limitInfo}</span>
+        </div>
+        <div>
+          ${statusBadge}
+        </div>
+      `;
+      summaryEl.appendChild(div);
+    });
+  }
+
+  renderList();
+  renderSummary();
+</script>
+
+</body>
+</html>
