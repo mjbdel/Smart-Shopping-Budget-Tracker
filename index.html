@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Shopping & Budget Tracker</title>
+  <!-- Google Fonts for Handwritten Look -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Patrick+Hand&display=swap" rel="stylesheet">
+  <!-- Barcode Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root {
+      --primary: #2b5797;
+      --success: #2e7d32;
+      --danger: #d32f2f;
+      --paper-yellow: #fef9d7;
+      --paper-line: #a4c2f4;
+      --paper-margin: #ff8a80;
+      --card-bg: #ffffff;
+      --font-handwriting: 'Patrick Hand', cursive;
+      --font-heading: 'Architects Daughter', cursive;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: var(--paper-yellow);
+      background-image: 
+        linear-gradient(90deg, transparent 49px, var(--paper-margin) 49px, var(--paper-margin) 51px, transparent 51px),
+        linear-gradient(var(--paper-line) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 32px;
+      color: #333;
+    }
+
+    h2, h3 { 
+      font-family: var(--font-heading);
+      margin-top: 0; 
+      color: #222; 
+      letter-spacing: 0.5px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+      border: 1px solid #e0d8b0;
+      position: relative;
+    }
+
+    /* SPIRAL NOTEBOOK CARD FOR CART */
+    .checklist-card {
+      background-color: #fffef0;
+      background-image: 
+        linear-gradient(90deg, transparent 44px, var(--paper-margin) 44px, var(--paper-margin) 46px, transparent 46px),
+        linear-gradient(#d0e1fd 1px, transparent 1px);
+      background-size: 100% 100%, 100% 36px;
+      border: 1px solid #d4c885;
+      padding-left: 20px;
+      border-left: 18px solid #333; /* Notebook Spine */
+    }
+
+    /* BINDER HOLES */
+    .checklist-card::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 20px;
+      bottom: 20px;
+      width: 8px;
+      background: radial-gradient(circle, #fef9d7 40%, transparent 45%);
+      background-size: 8px 30px;
+    }
+
+    .balance-box { 
+      font-family: var(--font-heading);
+      text-align: center; 
+      font-size: 2.2rem; 
+      font-weight: bold; 
+      margin: 8px 0; 
+    }
+    .balance-label { text-align: center; font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .breakdown { display: flex; justify-content: space-between; font-size: 0.85rem; color: #555; margin-top: 12px; border-top: 1px #eee solid; padding-top: 10px; }
+    .positive { color: var(--success); }
+    .negative { color: var(--danger); }
+    
+    label { font-size: 0.85rem; font-weight: 600; color: #555; display: block; margin-top: 8px; }
+    input, select { width: 100%; padding: 10px; margin: 4px 0 8px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; background: #fff; }
+    
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+    .checkbox-row input { width: auto; margin: 0; }
+    
+    button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 4px; }
+    button.secondary { background: #6c757d; }
+    button.outline { background: #fff; color: var(--primary); border: 1px solid var(--primary); }
+    button.small { padding: 4px 8px; font-size: 0.8rem; width: auto; }
+    
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      margin-left: 28px;
+    }
+
+    .filter-tabs button {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border-radius: 20px;
+      background: #f0e6bd;
+      color: #444;
+      border: 1px solid #d4c885;
+      cursor: pointer;
+    }
+
+    .filter-tabs button.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    ul { list-style: none; padding: 0; margin: 0; }
+    
+    /* CHECKLIST ITEMS WITH HANDWRITTEN STYLE */
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 36px;
+      padding: 2px 0 2px 28px;
+      font-family: var(--font-handwriting);
+      font-size: 1.25rem;
+    }
+
+    .checklist-item-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .item-check {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .item-details { display: flex; flex-direction: column; gap: 0; }
+    .item-main-line { font-weight: bold; color: #111; line-height: 1.1; }
+    
+    /* CHECKED / STRIKEY EFFECT */
+    .completed .item-main-line {
+      text-decoration: line-through 2px #d32f2f;
+      color: #888;
+    }
+    .completed .item-type-tag {
+      opacity: 0.5;
+    }
+
+    .item-type-tag { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 0.7rem; 
+      color: #007bff; 
+      font-weight: normal; 
+      background: #e7f1ff; 
+      padding: 1px 5px; 
+      border-radius: 4px; 
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    
+    .item-subtext { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 0.72rem; 
+      color: #666; 
+    }
+
+    .remove-btn { background: var(--danger); color: white; border: none; padding: 2px 6px; border-radius: 4px; width: auto; font-size: 0.8rem; margin-left: 8px; cursor: pointer; }
+    
+    /* CATEGORY SUMMARY BAR */
+    .category-summary {
+      margin-top: 16px;
+      padding-top: 10px;
+      border-top: 1px dashed #c0b070;
+      font-size: 0.82rem;
+      color: #444;
+    }
+
+    .category-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .chip {
+      background: #eee8c5;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+    }
+
+    .saved-trip-item { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid #e9ecef; }
+    .saved-trip-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4px; }
+    
+    #scanner-container { display: none; margin-bottom: 12px; background: #000; border-radius: 8px; overflow: hidden; }
+    .btn-group { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+    .btn-group button { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- BUDGET SUMMARY -->
+  <div class="card">
+    <h2>Budget Summary</h2>
+    
+    <label for="initial-budget">Starting Budget ($)</label>
+    <input type="number" id="initial-budget" placeholder="e.g. 150.00" step="0.01">
+
+    <label for="tax-rate">Sales Tax Rate (%)</label>
+    <input type="number" id="tax-rate" value="7.00" step="0.01" placeholder="7.0">
+
+    <button onclick="applySettings()">Set Budget</button>
+
+    <div style="margin-top: 16px;">
+      <div class="balance-label">Remaining Budget</div>
+      <div class="balance-box">
+        <span id="remaining-amount" class="positive">$0.00</span>
+      </div>
+    </div>
+
+    <div class="breakdown">
+      <div>Starting: <b id="starting-val">$0.00</b></div>
+      <div>Subtotal: <b id="subtotal-val">$0.00</b></div>
+      <div>Tax: <b id="tax-val">$0.00</b></div>
+      <div>Spent: <b id="spent-val">$0.00</b></div>
+    </div>
+  </div>
+
+  <!-- ADD ITEM -->
+  <div class="card">
+    <h3>Add Item</h3>
+    
+    <button type="button" class="outline" onclick="toggleScanner()" style="margin-bottom: 12px;">📷 Scan Barcode</button>
+    <div id="scanner-container">
+      <div id="interactive" style="width: 100%;"></div>
+    </div>
+
+    <label for="item-name">Item Name</label>
+    <input type="text" id="item-name" placeholder="Item description (e.g. Milk, Bread)">
+    
+    <label for="item-category">Type / Category</label>
+    <select id="item-category">
+      <option value="Grocery">Grocery</option>
+      <option value="Household">Household</option>
+      <option value="School Supplies">School Supplies</option>
+      <option value="Snacks">Snacks</option>
+      <option value="Apparel">Apparel</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <label for="item-price">Price ($)</label>
+    <input type="number" id="item-price" placeholder="Price ($)" step="0.01">
+    
+    <div class="checkbox-row">
+      <input type="checkbox" id="item-taxable" checked>
+      <label for="item-taxable" style="margin:0;">Apply sales tax to this item</label>
+    </div>
+
+    <button onclick="addItem()">Deduct Item from Budget</button>
+  </div>
+
+  <!-- CHECKLIST CART -->
+  <div class="card checklist-card">
+    <h3>📝 Shopping Checklist</h3>
+
+    <!-- FILTER TABS -->
+    <div class="filter-tabs">
+      <button id="filter-all" class="active" onclick="setFilter('all')">All</button>
+      <button id="filter-active" onclick="setFilter('active')">To Buy</button>
+      <button id="filter-done" onclick="setFilter('done')">Checked</button>
+    </div>
+
+    <ul id="item-list"></ul>
+
+    <!-- CATEGORY SUMMARY -->
+    <div class="category-summary" id="category-summary">
+      <b>Category Breakdown:</b>
+      <div class="category-chips" id="category-chips">
+        <span style="color:#777;">No items in list</span>
+      </div>
+    </div>
+    
+    <div class="btn-group">
+      <button class="outline" onclick="saveCurrentTrip()">Save List</button>
+      <button class="outline" onclick="exportCSV()">Export CSV</button>
+      <button class="outline" onclick="shareCartText()">Share List</button>
+      <button class="secondary" onclick="clearCurrentCart()">Clear Cart</button>
+    </div>
+  </div>
+
+  <!-- SAVED TRIPS -->
+  <div class="card">
+    <h3>Saved Lists & Past Trips</h3>
+    <div id="saved-trips-container">
+      <p style="color: #777; font-size: 0.9rem;">No saved lists yet.</p>
+    </div>
+  </div>
+
+  <script>
+    let totalBudget = 0;
+    let taxRate = 0.07;
+    let items = [];
+    let currentFilter = 'all';
+    let html5QrCode = null;
+
+    window.onload = function() {
+      loadSavedTrips();
+    };
+
+    function applySettings() {
+      const budgetInput = parseFloat(document.getElementById('initial-budget').value);
+      const taxInput = parseFloat(document.getElementById('tax-rate').value);
+
+      if (!isNaN(budgetInput) && budgetInput >= 0) {
+        totalBudget = budgetInput;
+      }
+      
+      if (!isNaN(taxInput) && taxInput >= 0) {
+        taxRate = taxInput / 100;
+      }
+
+      updateCalculations();
+    }
+
+    function addItem() {
+      const nameInput = document.getElementById('item-name');
+      const priceInput = document.getElementById('item-price');
+      const categoryInput = document.getElementById('item-category');
+      const isTaxable = document.getElementById('item-taxable').checked;
+
+      const name = nameInput.value.trim() || 'Item';
+      const category = categoryInput.value;
+      const price = parseFloat(priceInput.value);
+
+      if (isNaN(price) || price <= 0) return;
+
+      items.push({
+        id: Date.now(),
+        name,
+        category,
+        price,
+        isTaxable,
+        checked: false
+      });
+
+      nameInput.value = '';
+      priceInput.value = '';
+      document.getElementById('item-taxable').checked = true;
+      
+      updateCalculations();
+    }
+
+    function toggleCheck(id) {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        item.checked = !item.checked;
+        updateCalculations();
+      }
+    }
+
+    function removeItem(id) {
+      items = items.filter(item => item.id !== id);
+      updateCalculations();
+    }
+
+    function clearCurrentCart() {
+      if (confirm("Clear all active items from your cart?")) {
+        items = [];
+        updateCalculations();
+      }
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-tabs button').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`filter-${filter}`).classList.add('active');
+      renderList();
+    }
+
+    function updateCalculations() {
+      let subtotal = 0;
+      let totalTax = 0;
+
+      items.forEach(item => {
+        subtotal += item.price;
+        if (item.isTaxable) {
+          totalTax += (item.price * taxRate);
+        }
+      });
+
+      const grandTotal = subtotal + totalTax;
+      const remainingBalance = totalBudget - grandTotal;
+
+      document.getElementById('starting-val').textContent = `$${totalBudget.toFixed(2)}`;
+      document.getElementById('subtotal-val').textContent = `$${subtotal.toFixed(2)}`;
+      document.getElementById('tax-val').textContent = `$${totalTax.toFixed(2)}`;
+      document.getElementById('spent-val').textContent = `$${grandTotal.toFixed(2)}`;
+
+      const balanceElement = document.getElementById('remaining-amount');
+      balanceElement.textContent = `$${remainingBalance.toFixed(2)}`;
+
+      if (remainingBalance < 0) {
+        balanceElement.className = 'negative';
+      } else {
+        balanceElement.className = 'positive';
+      }
+
+      renderList();
+      renderCategorySummary();
+    }
+
+    function renderList() {
+      const listElement = document.getElementById('item-list');
+      listElement.innerHTML = '';
+
+      if (items.length === 0) {
+        listElement.innerHTML = '<li style="color:#777; font-size:1rem; padding-left:28px;">Your shopping checklist is empty.</li>';
+        return;
+      }
+
+      // Auto-sort: unchecked items on top, checked items at bottom
+      const sortedItems = [...items].sort((a, b) => a.checked - b.checked);
+
+      // Filter
+      const filteredItems = sortedItems.filter(item => {
+        if (currentFilter === 'active') return !item.checked;
+        if (currentFilter === 'done') return item.checked;
+        return true;
+      });
+
+      if (filteredItems.length === 0) {
+        listElement.innerHTML = `<li style="color:#777; font-size:1rem; padding-left:28px;">No ${currentFilter} items found.</li>`;
+        return;
+      }
+
+      filteredItems.forEach(item => {
+        const itemTax = item.isTaxable ? (item.price * taxRate) : 0;
+        const itemTotal = item.price + itemTax;
+
+        const li = document.createElement('li');
+        if (item.checked) li.className = 'completed';
+
+        li.innerHTML = `
+          <div class="checklist-item-left">
+            <input type="checkbox" class="item-check" ${item.checked ? 'checked' : ''} onclick="toggleCheck(${item.id})">
+            <div class="item-details">
+              <div class="item-main-line">
+                ${item.name} <span class="item-type-tag">${item.category}</span>
+              </div>
+              <div class="item-subtext">Base: $${item.price.toFixed(2)} ${item.isTaxable ? `(+ $${itemTax.toFixed(2)} tax)` : '(No tax)'}</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center;">
+            <b style="font-size: 1.1rem; font-family: var(--font-handwriting);">$${itemTotal.toFixed(2)}</b>
+            <button class="remove-btn" onclick="removeItem(${item.id})">✕</button>
+          </div>
+        `;
+        listElement.appendChild(li);
+      });
+    }
+
+    function renderCategorySummary() {
+      const chipsContainer = document.getElementById('category-chips');
+      if (items.length === 0) {
+        chipsContainer.innerHTML = '<span style="color:#777;">No items in list</span>';
+        return;
+      }
+
+      const totals = {};
+      items.forEach(item => {
+        const itemTax = item.isTaxable ? (item.price * taxRate) : 0;
+        const total = item.price + itemTax;
+        totals[item.category] = (totals[item.category] || 0) + total;
+      });
+
+      chipsContainer.innerHTML = Object.entries(totals)
+        .map(([cat, total]) => `<span class="chip"><b>${cat}:</b> $${total.toFixed(2)}</span>`)
+        .join('');
+    }
+
+    // BARCODE SCANNER LOGIC
+    function toggleScanner() {
+      const container = document.getElementById('scanner-container');
+      if (container.style.display === 'block') {
+        stopScanner();
+      } else {
+        container.style.display = 'block';
+        html5QrCode = new Html5Qrcode("interactive");
+        html5QrCode.start(
+          { facingMode: "environment" }, 
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          (decodedText) => {
+            document.getElementById('item-name').value = `Barcode: ${decodedText}`;
+            stopScanner();
+          },
+          () => {}
+        ).catch(err => {
+          alert("Camera access failed or unavailable.");
+          stopScanner();
+        });
+      }
+    }
+
+    function stopScanner() {
+      const container = document.getElementById('scanner-container');
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          container.style.display = 'none';
+        }).catch(() => {
+          container.style.display = 'none';
+        });
+      } else {
+        container.style.display = 'none';
+      }
+    }
+
+    // EXPORT & SHARE LOGIC
+    function exportCSV() {
+      if (items.length === 0) return alert("Cart is empty!");
+      let csvContent = "data:text/csv;charset=utf-8,Status,Item Name,Type,Base Price,Taxable,Total Cost\n";
+      
+      items.forEach(i => {
+        const itemTax = i.isTaxable ? (i.price * taxRate) : 0;
+        csvContent += `"${i.checked ? 'Checked' : 'Unchecked'}","${i.name}","${i.category}",${i.price.toFixed(2)},${i.isTaxable ? 'Yes' : 'No'},${(i.price + itemTax).toFixed(2)}\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `shopping_checklist_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function shareCartText() {
+      if (items.length === 0) return alert("Cart is empty!");
+      let text = `📝 *Shopping Checklist*\n`;
+      let subtotal = 0;
+      let totalTax = 0;
+
+      items.forEach(i => {
+        const itemTax = i.isTaxable ? (i.price * taxRate) : 0;
+        const mark = i.checked ? '✅' : '⬜';
+        text += `${mark} ${i.name} [${i.category}]: $${(i.price + itemTax).toFixed(2)}\n`;
+        subtotal += i.price;
+        totalTax += itemTax;
+      });
+
+      const grandTotal = subtotal + totalTax;
+      const remaining = totalBudget - grandTotal;
+      text += `\n*Budget:* $${totalBudget.toFixed(2)}\n*Total Spent:* $${grandTotal.toFixed(2)}\n*Remaining:* $${remaining.toFixed(2)}`;
+
+      if (navigator.share) {
+        navigator.share({ title: 'Shopping Checklist', text: text });
+      } else {
+        navigator.clipboard.writeText(text);
+        alert("Checklist copied to clipboard!");
+      }
+    }
+
+    // LOCAL STORAGE FOR SAVED TRIPS
+    function saveCurrentTrip() {
+      if (items.length === 0) return alert("Add some items before saving a list.");
+
+      const listName = prompt("Enter a name for this shopping list:", `Trip ${new Date().toLocaleDateString()}`);
+      if (!listName) return;
+
+      const savedTrips = JSON.parse(localStorage.getItem('budget_saved_trips') || '[]');
+      const subtotal = items.reduce((acc, i) => acc + i.price, 0);
+      const tax = items.reduce((acc, i) => acc + (i.isTaxable ? i.price * taxRate : 0), 0);
+
+      savedTrips.push({
+        id: Date.now(),
+        name: listName,
+        date: new Date().toLocaleDateString(),
+        budget: totalBudget,
+        taxRate: taxRate,
+        items: items,
+        totalSpent: subtotal + tax
+      });
+
+      localStorage.setItem('budget_saved_trips', JSON.stringify(savedTrips));
+      loadSavedTrips();
+      alert("List saved!");
+    }
+
+    function loadSavedTrips() {
+      const container = document.getElementById('saved-trips-container');
+      const savedTrips = JSON.parse(localStorage.getItem('budget_saved_trips') || '[]');
+
+      if (savedTrips.length === 0) {
+        container.innerHTML = '<p style="color: #777; font-size: 0.9rem;">No saved lists yet.</p>';
+        return;
+      }
+
+      container.innerHTML = '';
+      savedTrips.forEach(trip => {
+        const div = document.createElement('div');
+        div.className = 'saved-trip-item';
+        div.innerHTML = `
+          <div class="saved-trip-header">
+            <span>${trip.name} (${trip.date})</span>
+            <span>$${trip.totalSpent.toFixed(2)}</span>
+          </div>
+          <div style="font-size: 0.8rem; color: #555; margin-bottom: 6px;">
+            ${trip.items.length} items | Budget: $${trip.budget.toFixed(2)}
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="outline small" onclick="reloadTrip(${trip.id})">Load</button>
+            <button class="remove-btn small" onclick="deleteTrip(${trip.id})">Delete</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function reloadTrip(id) {
+      const savedTrips = JSON.parse(localStorage.getItem('budget_saved_trips') || '[]');
+      const trip = savedTrips.find(t => t.id === id);
+      
+      if (trip) {
+        totalBudget = trip.budget;
+        taxRate = trip.taxRate || 0.07;
+        items = [...trip.items];
+
+        document.getElementById('initial-budget').value = totalBudget;
+        document.getElementById('tax-rate').value = (taxRate * 100).toFixed(2);
+
+        updateCalculations();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function deleteTrip(id) {
+      let savedTrips = JSON.parse(localStorage.getItem('budget_saved_trips') || '[]');
+      savedTrips = savedTrips.filter(t => t.id !== id);
+      localStorage.setItem('budget_saved_trips', JSON.stringify(savedTrips));
+      loadSavedTrips();
+    }
+  </script>
+</body>
+</html>
